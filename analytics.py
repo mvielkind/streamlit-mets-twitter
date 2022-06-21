@@ -1,15 +1,14 @@
-import os
 import json
 import random
 import requests
+import streamlit as st
 import pandas as pd
-from dotenv import load_dotenv
-load_dotenv()
 
-ELASTIC_USER = os.getenv("ELASTIC_USER")
-ELASTIC_URL = os.getenv("ELASTIC_URL")
-ELASTIC_PASS = os.getenv("ELASTIC_PASS")
-ELASTIC_INDEX = os.getenv("ELASTIC_INDEX")
+
+ELASTIC_USER = st.secrets["ELASTIC_USER"]
+ELASTIC_URL = st.secrets["ELASTIC_URL"]
+ELASTIC_PASS = st.secrets["ELASTIC_PASS"]
+ELASTIC_INDEX = st.secrets["ELASTIC_INDEX"]
 
 
 moods = json.load(open("emoji_moods.json", "r"))
