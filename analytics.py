@@ -14,6 +14,43 @@ ELASTIC_INDEX = st.secrets["ELASTIC_INDEX"]
 moods = json.load(open("emoji_moods.json", "r"))
 
 
+roster = [
+    "Francisco Lindor",
+    "Pete Alonso",
+    "Max Scherzer",
+    "Jacob deGrom",
+    "Buck Showalter",
+    "Steve Cohen",
+    "Tomas Nido",
+    "Carlos Carrasco",
+    "Dom Smith",
+    "Brandon Nimmo",
+    "Mark Canha",
+    "Luis Guillorme",
+    "James McCann",
+    "Starling Marte",
+    "Eduardo Escobar",
+    "Jeff McNeil",
+    "Tylor Megill",
+    "Chris Bassitt",
+    "Edwin Diaz",
+    "Nick Plummer",
+    "Taijuan Walker",
+    "Adam Ottavino",
+    "David Peterson",
+    "Drew Smith",
+    "J. D. Davis",
+    "Trevor Williams",
+    "Adonis Medina",
+    "Seth Lugo",
+    "Patrick Mazeika",
+    "Trevor May",
+    "Chasen Shreve",
+    "Francisco Alvarez",
+    "Tommy Hunter"
+]
+
+
 class ElasticHelper:
 
     def __init__(self, url=ELASTIC_URL, index=ELASTIC_INDEX):
@@ -35,6 +72,47 @@ class MetsTwitter(ElasticHelper):
 
     def current_sentiment(self):
         pass
+
+    def player_sentiment(self):
+        """Aggregate sentiment for players on Mets Twitter."""
+        query = {
+            "size": 0,
+            "query": {
+                "range": {
+                    "created_at": {
+                        "gte": "now-24h"
+                    }
+                }
+            },
+            "aggs": {
+                "player_buckets": {
+                    "composite": {
+                        "sources": [
+                            {"player": {"terms": {"field": "player_entities"}}},
+                            {"sentiment": {"terms": {"field": "sentiment.label"}}}
+                        ],
+                        "size": 1000
+                    }
+                }
+            }
+        }
+
+        response = self.query(query)
+        data = response.json()
+        buckets = data["aggregations"]["player_buckets"]["buckets"]
+        df = pd.json_normalize(buckets)
+        df = df[df["key.player"].isin(roster)]
+
+        data = df.pivot_table(
+            values="doc_count",
+            index="key.player",
+            columns="key.sentiment",
+            fill_value=0
+        )
+
+        data["Overall Sentiment"] = data["POS"] - data["NEG"]
+
+        return data
 
     def sentiment_window(self, _from):
         query = {

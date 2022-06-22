@@ -10,6 +10,10 @@ def time_series_chart(data):
     data["r"] = data["net_sentiment"].rolling(10, min_periods=1).sum()
     y = data["rolling_sentiment"].values
 
+    with open("data.csv", "w") as f:
+        for z in y:
+            f.write(str(z))
+
     new_data = pd.DataFrame(
         lowess(exog=x, endog=y, frac=0.02),
         columns=["index", "net_sentiment"]
