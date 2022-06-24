@@ -47,7 +47,9 @@ roster = [
     "Trevor May",
     "Chasen Shreve",
     "Francisco Alvarez",
-    "Tommy Hunter"
+    "Tommy Hunter",
+    "Yoan Lopez",
+    "Joely Rodriguez"
 ]
 
 
@@ -149,24 +151,7 @@ class MetsTwitter(ElasticHelper):
 
         return {
             "score": s
-            # "score": round(raw_score * (1 - -1) - 1, 2)
         }
-
-        # if sentiments["POS"] > sentiments["NEG"]:
-            # return {
-            #     "sentiment": "POS",
-            #     "score": f'+{sentiments["POS"] - sentiments["NEG"]}'
-            # }
-        # elif sentiments["POS"] < sentiments["NEG"]:
-        #     return {
-        #         "sentiment": "NEG",
-        #         "score": f'{sentiments["POS"] - sentiments["NEG"]}'
-        #     }
-        # else:
-        #     return {
-        #         "sentiment": "NEU",
-        #         "score": '-'
-        #     }
 
     def sentiment_history(self, start_date):
         """Get the sentiment for the day."""
@@ -204,13 +189,9 @@ class MetsTwitter(ElasticHelper):
             columns="key.sentiment",
             fill_value=0
         )
-        # data["net_sentiment"] = data["POS"] - data["NEG"]
-        data["net_sentiment"] = data["POS"] / (data["POS"] + data["NEG"])
-        data["net_sentiment"].fillna(0, inplace=True)
         data["rolling_POS"] = data["POS"].rolling(10, min_periods=1).sum()
         data["rolling_NEG"] = data["NEG"].rolling(10, min_periods=1).sum()
         data["rolling_sentiment"] = data["rolling_POS"] / (data["rolling_POS"] + data["rolling_NEG"])
-        data["rolling"] = data["net_sentiment"].rolling(6, min_periods=1).sum()
         data["rolling_sentiment"].fillna(0, inplace=True)
         data.index.names = ["index"]
 

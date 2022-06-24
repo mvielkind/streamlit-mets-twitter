@@ -7,7 +7,6 @@ def time_series_chart(data):
     """Build the time series chart."""
 
     x = range(len(data))
-    data["r"] = data["net_sentiment"].rolling(10, min_periods=1).sum()
     y = data["rolling_sentiment"].values
 
     with open("data.csv", "w") as f:
@@ -19,7 +18,6 @@ def time_series_chart(data):
         columns=["index", "net_sentiment"]
     )
     new_data["time"] = data.index
-    # new_data["net_sentiment"] = y
 
     chart = alt.layer(
         alt.Chart().mark_line(),
