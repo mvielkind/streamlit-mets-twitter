@@ -49,7 +49,8 @@ roster = [
     "Francisco Alvarez",
     "Tommy Hunter",
     "Yoan Lopez",
-    "Joely Rodriguez"
+    "Joely Rodriguez",
+    "Billy Eppler"
 ]
 
 
@@ -75,14 +76,14 @@ class MetsTwitter(ElasticHelper):
     def current_sentiment(self):
         pass
 
-    def player_sentiment(self):
+    def player_sentiment(self, start_date):
         """Aggregate sentiment for players on Mets Twitter."""
         query = {
             "size": 0,
             "query": {
                 "range": {
                     "created_at": {
-                        "gte": "now-24h"
+                        "gte": start_date
                     }
                 }
             },
@@ -93,7 +94,7 @@ class MetsTwitter(ElasticHelper):
                             {"player": {"terms": {"field": "player_entities"}}},
                             {"sentiment": {"terms": {"field": "sentiment.label"}}}
                         ],
-                        "size": 1000
+                        "size": 10000
                     }
                 }
             }
@@ -160,7 +161,7 @@ class MetsTwitter(ElasticHelper):
             "query": {
                 "range": {
                     "created_at": {
-                        "gte": f"{start_date} 00:00:00",
+                        "gte": start_date,
                         "lt": "now"
                     }
                 }

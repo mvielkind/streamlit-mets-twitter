@@ -14,17 +14,27 @@ st.title("#MetsTwitter Mood")
 st.markdown("How's #MetsTwitter feeling today? Here's a real-ish time dashboard keeping a pulse on all the highs and "
             "lows that define #MetsTwitter!")
 
-sentiment_today = mt.sentiment_window("now-24h")
+# Allow user to pick a look back period.
+lookback_map = {
+    "Last 12 Hours": "now-3h",
+    "Last 24 Hours": "now-24h",
+    "Last 7 Days": "now-168h"
+}
+lookback_choice = st.selectbox(
+    label="Pick a Timeframe.",
+    options=[
+        "Last 12 Hours",
+        "Last 24 Hours",
+        "Last 7 Days"
+    ],
+    index=1
+)
+lookback_gte = lookback_map[lookback_choice]
+
+sentiment_today = mt.sentiment_window("now-12h")
 st.markdown(f"### Current Mood: {sentiment_today['score']}")
 
-start_date = st.date_input(
-    label="Pick starting date for fan sentiment.",
-    value=datetime.datetime.now(tz=pytz.timezone("US/Eastern")).date(),
-    min_value=datetime.date(2022, 6, 17),
-    max_value=datetime.datetime.now(tz=pytz.timezone("US/Eastern")).date()
-)
-
-sentiment_trend = mt.sentiment_history(start_date)
+sentiment_trend = mt.sentiment_history(lookback_gte)
 
 st.altair_chart(
     altair_chart=charts.time_series_chart(sentiment_trend),
@@ -37,27 +47,15 @@ st.altair_chart(
 )
 
 # Show table of player sentiment.
-st.subheader("Twitter Player Sentiment (last 24 hours)")
+st.subheader("Player Sentiment Rankings")
 
-st.markdown("Where possible players are extracted from tweets. Players are ranked based on the ratio of "
-            "positive to negative tweets.")
+st.markdown("Player ranking based on the ratio of positive to negative tweets on Mets Twitter.")
 
-st.markdown("#### Top Player Sentiments")
-
-player_sentiment = mt.player_sentiment()
-player_table_1, player_table_2, player_table_3 = st.columns(3)
+player_sentiment = mt.player_sentiment(lookback_gte)
 top_3 = player_sentiment.sort_values("Overall Sentiment", ascending=False)[:3]
-with player_table_1:
-    st.markdown("### 🥇")
-    st.markdown(f"### {top_3.iloc[0].name}")
-
-with player_table_2:
-    st.markdown("### 🥈")
-    st.markdown(f"### {top_3.iloc[1].name}")
-
-with player_table_3:
-    st.markdown("### 🥉")
-    st.markdown(f"### {top_3.iloc[2].name}")
+st.markdown(f"### 🥇 {top_3.iloc[0].name}")
+st.markdown(f"### 🥈 {top_3.iloc[1].name}")
+st.markdown(f"### 🥉 {top_3.iloc[2].name}")
 
 with st.expander("Full Player Sentiment Rankings..."):
     player_sentiment["Rank"] = player_sentiment["Overall Sentiment"].rank(
