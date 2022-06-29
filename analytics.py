@@ -173,7 +173,7 @@ class MetsTwitter(ElasticHelper):
                             {"created_at": {"date_histogram": {"field": "created_at", "fixed_interval": "1m"}}},
                             {"sentiment": {"terms": {"field": "sentiment.label"}}}
                         ],
-                        "size": 10000
+                        "size": 5000
                     }
                 }
             }
@@ -181,7 +181,11 @@ class MetsTwitter(ElasticHelper):
 
         response = self.query(query)
         data = response.json()
-        buckets = data["aggregations"]["tweets_by_minute"]["buckets"]
+        try:
+            buckets = data["aggregations"]["tweets_by_minute"]["buckets"]
+        except KeyError:
+            print(data)
+            raise KeyError("Error in Elastic response")
         df = pd.json_normalize(buckets)
         df["key.date"] = pd.to_datetime(df["key.created_at"], unit="ms")
         data = df.pivot_table(
