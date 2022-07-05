@@ -1,8 +1,10 @@
 import json
 import random
 import requests
+import numpy as np
 import streamlit as st
 import pandas as pd
+import pytz
 
 
 ELASTIC_USER = st.secrets["ELASTIC_USER"]
@@ -39,7 +41,7 @@ roster = [
     "Adam Ottavino",
     "David Peterson",
     "Drew Smith",
-    "J. D. Davis",
+    "J.D. Davis",
     "Trevor Williams",
     "Adonis Medina",
     "Seth Lugo",
@@ -50,7 +52,8 @@ roster = [
     "Tommy Hunter",
     "Yoan Lopez",
     "Joely Rodriguez",
-    "Billy Eppler"
+    "Billy Eppler",
+    "Ender Inciarte"
 ]
 
 
@@ -201,3 +204,45 @@ class MetsTwitter(ElasticHelper):
         data.index.names = ["index"]
 
         return data
+
+    def player_history(self, player: str):
+        """Daily history of player sentiment."""
+        query = {
+            "size": 0,
+            "query": {
+                "term": {
+                    "player_entities": player
+                }
+            },
+            "aggs": {
+                "daily_sentiment": {
+                    "composite": {
+                        "sources": [
+                            {"date": {"date_histogram": {"field": "created_at", "fixed_interval": "1d"}}},
+                            {"sentiment": {"terms": {"field": "sentiment.label"}}}
+                        ],
+                        "size": 5000
+                    }
+                }
+            }
+        }
+
+        response = self.query(query)
+        data = response.json()
+        buckets = data["aggregations"]["daily_sentiment"]["buckets"]
+        df = pd.json_normalize(buckets)
+        df["key.date"] = pd.to_datetime(df["key.date"], unit="ms")
+        tbl = df.pivot_table(
+            values="doc_count",
+            index="key.date",
+            columns="key.sentiment",
+            fill_value=0
+        )
+        # tbl.tz_localize(tz=pytz.timezone("US/Eastern"))
+        tbl["rolling_sentiment"] = tbl["POS"] / (tbl["POS"] + tbl["NEG"])
+        tbl.replace([np.inf, -np.inf], 0, inplace=True)
+        tbl["rolling_sentiment"] = (tbl["rolling_sentiment"]-0.5) * 2
+        tbl.index.names = ["index"]
+
+        return tbl
+

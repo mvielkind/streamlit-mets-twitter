@@ -1,5 +1,7 @@
 import datetime
 import streamlit as st
+
+import analytics
 from analytics import MetsTwitter
 import charts
 import pytz
@@ -16,9 +18,9 @@ st.markdown("How's #MetsTwitter feeling today? Here's a real-ish time dashboard 
 
 # Allow user to pick a look back period.
 lookback_map = {
-    "Last 12 Hours": "now-3h",
-    "Last 24 Hours": "now-24h",
-    "Last 7 Days": "now-168h"
+    "Last 12 Hours": "now-3h/h",
+    "Last 24 Hours": "now-24h/h",
+    "Last 7 Days": "now-168h/h"
 }
 lookback_choice = st.selectbox(
     label="Pick a Timeframe.",
@@ -64,6 +66,19 @@ with st.expander("Full Player Sentiment Rankings..."):
     ).astype(int)
     st.table(player_sentiment.sort_values("Overall Sentiment", ascending=False)[["Rank"]])
 
+# Display player sentiment history.
+st.subheader("Player Trends")
+player = st.selectbox(
+    label="Select a Player",
+    options=sorted(analytics.roster)
+)
+
+player_data = mt.player_history(player=player)
+st.altair_chart(
+    altair_chart=charts.pos_neg_bar_chart(player_data),
+    use_container_width=True
+)
+
 # A note about the data.
 st.subheader("Let's Get Nerdy 🤓")
 
@@ -87,8 +102,10 @@ with st.expander("View Technical Notes..."):
 
     st.markdown("To measure sentiment the Huggingface [bertweet-base-sentiment-analysis](https://huggingface.co/finiteautomata/bertweet-base-sentiment-analysis) "
                 "model is used. Reviewing tweets coming from the stream the model works reasonably well out-of-the-box."
-                "Sports-related tweets can be dripping in sarcasm that the base model might not pickup. A future improvement "
-                "could be fine-tuning the sentiment model to be specific to the tweets I'm using.")
+                "Sports-related tweets can be dripping in sarcasm that the base model might not pickup. For example the "
+                "tweet 'Can’t wait to see Dom go 0-4 2Ks and 2 Ground ball outs one GIDP and a groundout to first' "
+                "is classified as **POSITIVE**. The tweet drips with sarcasm and is actually a negative tweet. Having a "
+                "model adjust for sarcasm can help generate more accurate sentiment scores.")
 
     st.markdown("A custom NER model was trained using [spaCy](https://spacy.io/). The model was trained on a sample of "
                 "tweets to extract player names. Right now the model has an F-Score of 0.81. The model is updated daily with "

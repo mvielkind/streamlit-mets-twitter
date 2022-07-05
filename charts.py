@@ -9,10 +9,6 @@ def time_series_chart(data):
     x = range(len(data))
     y = data["rolling_sentiment"].values
 
-    with open("data.csv", "w") as f:
-        for z in y:
-            f.write(str(z))
-
     new_data = pd.DataFrame(
         lowess(exog=x, endog=y, frac=0.02),
         columns=["index", "net_sentiment"]
@@ -44,6 +40,33 @@ def time_series_chart(data):
     line = alt.Chart(pd.DataFrame({'y': [0.5]})).mark_rule().encode(y='y')
 
     return line + chart
+
+
+def pos_neg_bar_chart(data: pd.DataFrame):
+    """Bar chart allows negative numbers."""
+
+    data.reset_index(inplace=True)
+    cht = alt.Chart(data).mark_bar().encode(
+        x=alt.X(
+            "monthdate(index):O",
+            axis=alt.Axis(grid=False, title="")
+        ),
+        y=alt.Y(
+            "rolling_sentiment:Q",
+            impute={'value': None},
+            axis=alt.Axis(labels=False, grid=False, title=""),
+            scale=alt.Scale(domain=[-1.05, 1.05])
+        ),
+        color=alt.condition(
+            alt.datum.rolling_sentiment > 0,
+            alt.value("steelblue"),  # The positive color
+            alt.value("orange")  # The negative color
+        )
+    )
+
+    line = alt.Chart(pd.DataFrame({'y': [0]})).mark_rule().encode(y='y')
+
+    return line + cht
 
 
 def bar_chart(data):
