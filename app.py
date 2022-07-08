@@ -1,10 +1,8 @@
-import datetime
 import streamlit as st
 
 import analytics
 from analytics import MetsTwitter
 import charts
-import pytz
 
 mt = MetsTwitter()
 
@@ -16,35 +14,29 @@ st.title("#MetsTwitter Mood")
 st.markdown("How's #MetsTwitter feeling today? Here's a real-ish time dashboard keeping a pulse on all the highs and "
             "lows that define #MetsTwitter!")
 
-# Allow user to pick a look back period.
-lookback_map = {
-    "Last 12 Hours": "now-3h/h",
-    "Last 24 Hours": "now-24h/h",
-    "Last 7 Days": "now-168h/h"
-}
 lookback_choice = st.selectbox(
     label="Pick a Timeframe.",
     options=[
         "Last 12 Hours",
         "Last 24 Hours",
-        "Last 7 Days"
+        "Last 7 Days",
+        "Season"
     ],
     index=1
 )
-lookback_gte = lookback_map[lookback_choice]
 
 sentiment_today = mt.sentiment_window("now-12h")
 st.markdown(f"### Current Mood: {sentiment_today['score']}")
 
-sentiment_trend = mt.sentiment_history(lookback_gte)
+sentiment_trend = mt.sentiment_history(lookback_choice)
 
 st.altair_chart(
-    altair_chart=charts.time_series_chart(sentiment_trend),
+    altair_chart=charts.time_series_chart(sentiment_trend, lookback_choice),
     use_container_width=True
 )
 
 st.altair_chart(
-    altair_chart=charts.bar_chart(sentiment_trend),
+    altair_chart=charts.bar_chart(sentiment_trend, lookback_choice),
     use_container_width=True
 )
 
@@ -53,7 +45,7 @@ st.subheader("Player Sentiment Rankings")
 
 st.markdown("Player ranking based on the ratio of positive to negative tweets on Mets Twitter.")
 
-player_sentiment = mt.player_sentiment(lookback_gte)
+player_sentiment = mt.player_sentiment(lookback_choice)
 top_3 = player_sentiment.sort_values("Overall Sentiment", ascending=False)[:3]
 st.markdown(f"### 🥇 {top_3.iloc[0].name}")
 st.markdown(f"### 🥈 {top_3.iloc[1].name}")

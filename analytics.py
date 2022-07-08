@@ -16,6 +16,30 @@ ELASTIC_INDEX = st.secrets["ELASTIC_INDEX"]
 moods = json.load(open("emoji_moods.json", "r"))
 
 
+lookback_map = {
+    "Last 12 Hours": {
+        "date_lookback": "now-12h/h",
+        "interval": "1m",
+        "smooth_periods": 30
+    },
+    "Last 24 Hours": {
+        "date_lookback": "now-24h/h",
+        "interval": "1m",
+        "smooth_periods": 30
+    },
+    "Last 7 Days": {
+        "date_lookback": "now-168h/h",
+        "interval": "15m",
+        "smooth_periods": 4
+    },
+    "Season": {
+        "date_lookback": "2022-06-20 00:00:00",
+        "interval": "60m",
+        "smooth_periods": 1
+    }
+}
+
+
 roster = [
     "Francisco Lindor",
     "Pete Alonso",
@@ -53,7 +77,8 @@ roster = [
     "Yoan Lopez",
     "Joely Rodriguez",
     "Billy Eppler",
-    "Ender Inciarte"
+    "Ender Inciarte",
+    "Jake Reed"
 ]
 
 
@@ -79,15 +104,23 @@ class MetsTwitter(ElasticHelper):
     def current_sentiment(self):
         pass
 
-    def player_sentiment(self, start_date):
+    def player_sentiment(self, period: str):
         """Aggregate sentiment for players on Mets Twitter."""
+        lookback_params = lookback_map[period]
         query = {
             "size": 0,
             "query": {
-                "range": {
-                    "created_at": {
-                        "gte": start_date
-                    }
+                "bool": {
+                    "must": [
+                        {"range": {
+                            "created_at": {
+                                "gte": lookback_params["date_lookback"]
+                            }
+                        }},
+                    ],
+                    "must_not": [
+                        {"term": {"is_opposing_fan": "true"}}
+                    ]
                 }
             },
             "aggs": {
@@ -124,11 +157,18 @@ class MetsTwitter(ElasticHelper):
         query = {
             "size": 0,
             "query": {
-                "range": {
-                    "created_at": {
-                        "gte": _from,
-                        "lt": "now"
-                    }
+                "bool": {
+                    "must": [
+                        {"range": {
+                            "created_at": {
+                                "gte": _from,
+                                "lt": "now"
+                            }
+                        }}
+                    ],
+                    "must_not": [
+                        {"term": {"is_opposing_fan": "true"}}
+                    ]
                 }
             },
             "aggs": {
@@ -157,23 +197,31 @@ class MetsTwitter(ElasticHelper):
             "score": s
         }
 
-    def sentiment_history(self, start_date):
+    def sentiment_history(self, period: str):
         """Get the sentiment for the day."""
+        lookback_params = lookback_map[period]
         query = {
             "size": 0,
             "query": {
-                "range": {
-                    "created_at": {
-                        "gte": start_date,
-                        "lt": "now"
-                    }
+                "bool": {
+                    "must": [
+                        {"range": {
+                            "created_at": {
+                                "gte": lookback_params["date_lookback"],
+                                "lt": "now"
+                            }
+                        }}
+                    ],
+                    "must_not": [
+                        {"term": {"is_opposing_fan": "true"}}
+                    ]
                 }
             },
             "aggs": {
                 "tweets_by_minute": {
                     "composite": {
                         "sources": [
-                            {"created_at": {"date_histogram": {"field": "created_at", "fixed_interval": "1m"}}},
+                            {"created_at": {"date_histogram": {"field": "created_at", "fixed_interval": lookback_params["interval"]}}},
                             {"sentiment": {"terms": {"field": "sentiment.label"}}}
                         ],
                         "size": 5000
@@ -197,8 +245,8 @@ class MetsTwitter(ElasticHelper):
             columns="key.sentiment",
             fill_value=0
         )
-        data["rolling_POS"] = data["POS"].rolling(10, min_periods=1).sum()
-        data["rolling_NEG"] = data["NEG"].rolling(10, min_periods=1).sum()
+        data["rolling_POS"] = data["POS"].rolling(lookback_params["smooth_periods"], min_periods=1).sum()
+        data["rolling_NEG"] = data["NEG"].rolling(lookback_params["smooth_periods"], min_periods=1).sum()
         data["rolling_sentiment"] = data["rolling_POS"] / (data["rolling_POS"] + data["rolling_NEG"])
         data["rolling_sentiment"].fillna(0, inplace=True)
         data.index.names = ["index"]
@@ -210,15 +258,20 @@ class MetsTwitter(ElasticHelper):
         query = {
             "size": 0,
             "query": {
-                "term": {
-                    "player_entities": player
+                "bool": {
+                    "must": [
+                        {"term": {"player_entities": player}}
+                    ],
+                    "must_not": [
+                        {"term": {"is_opposing_fan": "true"}}
+                    ]
                 }
             },
             "aggs": {
                 "daily_sentiment": {
                     "composite": {
                         "sources": [
-                            {"date": {"date_histogram": {"field": "created_at", "fixed_interval": "1d"}}},
+                            {"date": {"date_histogram": {"field": "created_at", "calendar_interval": "1d"}}},
                             {"sentiment": {"terms": {"field": "sentiment.label"}}}
                         ],
                         "size": 5000
